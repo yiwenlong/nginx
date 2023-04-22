@@ -14,11 +14,11 @@
 
 
 typedef struct {
-    void        *elts;
-    ngx_uint_t   nelts;
-    size_t       size;
-    ngx_uint_t   nalloc;
-    ngx_pool_t  *pool;
+    void        *elts;      // 指向数组首元素的指针
+    ngx_uint_t   nelts;     // 数组中已经使用的元素个数
+    size_t       size;      // 数组单个元素的大小
+    ngx_uint_t   nalloc;    // 数组容量（已经分配的元素个数）
+    ngx_pool_t  *pool;      // 该数组从哪个内存池中分配
 } ngx_array_t;
 
 

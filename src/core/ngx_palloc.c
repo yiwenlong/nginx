@@ -24,13 +24,17 @@ ngx_create_pool(size_t size, ngx_log_t *log)
     if (p == NULL) {
         return NULL;
     }
-
+    
+    // 设置数据区的开始位置，结构体信息后面
     p->d.last = (u_char *) p + sizeof(ngx_pool_t);
+    // 设置数据区的结束位置
     p->d.end = (u_char *) p + size;
     p->d.next = NULL;
     p->d.failed = 0;
 
+    // 算出数据区的size
     size = size - sizeof(ngx_pool_t);
+    // 内存分配时max值为min(NGX_MAX_ALLOC_FROM_POOL, size)
     p->max = (size < NGX_MAX_ALLOC_FROM_POOL) ? size : NGX_MAX_ALLOC_FROM_POOL;
 
     p->current = p;
@@ -46,10 +50,12 @@ ngx_create_pool(size_t size, ngx_log_t *log)
 void
 ngx_destroy_pool(ngx_pool_t *pool)
 {
-    ngx_pool_t          *p, *n;
-    ngx_pool_large_t    *l;
-    ngx_pool_cleanup_t  *c;
+    ngx_pool_t          *p, *n;     // p: 用于遍历所有的 ngx_pool_t 结构体，释放它们占用的内存
+                                    // n: 用于暂存下一个待释放的 ngx_pool_t 结构体的地址
+    ngx_pool_large_t    *l;         // 用于遍历所有的大块内存（即通过 ngx_palloc_large 分配的内存），并释放它们占用的内存
+    ngx_pool_cleanup_t  *c;         // 用于遍历所有的清理函数（通过 ngx_pool_cleanup_add 添加），并执行这些清理函数
 
+    // 调用 data 的 cleanup 函数
     for (c = pool->cleanup; c; c = c->next) {
         if (c->handler) {
             ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0,
@@ -102,12 +108,14 @@ ngx_reset_pool(ngx_pool_t *pool)
     ngx_pool_t        *p;
     ngx_pool_large_t  *l;
 
+    // 释放大内存块
     for (l = pool->large; l; l = l->next) {
         if (l->alloc) {
             ngx_free(l->alloc);
         }
     }
 
+    // 重置所有块的起始位置
     for (p = pool; p; p = p->d.next) {
         p->d.last = (u_char *) p + sizeof(ngx_pool_t);
         p->d.failed = 0;
@@ -124,6 +132,7 @@ ngx_palloc(ngx_pool_t *pool, size_t size)
 {
 #if !(NGX_DEBUG_PALLOC)
     if (size <= pool->max) {
+        // 如果小于等于max，就申请小的
         return ngx_palloc_small(pool, size, 1);
     }
 #endif
@@ -160,6 +169,7 @@ ngx_palloc_small(ngx_pool_t *pool, size_t size, ngx_uint_t align)
             m = ngx_align_ptr(m, NGX_ALIGNMENT);
         }
 
+        // 如果当前内存池的块足够
         if ((size_t) (p->d.end - m) >= size) {
             p->d.last = m + size;
 
@@ -170,6 +180,7 @@ ngx_palloc_small(ngx_pool_t *pool, size_t size, ngx_uint_t align)
 
     } while (p);
 
+    // 申请新的块
     return ngx_palloc_block(pool, size);
 }
 
@@ -294,6 +305,7 @@ ngx_pfree(ngx_pool_t *pool, void *p)
 }
 
 
+// 申请一块内存，并清0
 void *
 ngx_pcalloc(ngx_pool_t *pool, size_t size)
 {

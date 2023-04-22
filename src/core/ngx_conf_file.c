@@ -10,9 +10,15 @@
 
 #define NGX_CONF_BUFFER  4096
 
+// 这个函数用于将配置文件中的指令转存到指定的文件中，以便后续查看和调试
 static ngx_int_t ngx_conf_add_dump(ngx_conf_t *cf, ngx_str_t *filename);
+// 这个函数是nginx配置文件解析的核心函数
+// 它会不断调用ngx_conf_read_token函数读取配置文件中的指令，并调用指令对应的处理函数进行处理。
+// last表示是否为最后一行指令。函数会不断循环读取配置文件中的指令，直到文件末尾或遇到last为1的行。
 static ngx_int_t ngx_conf_handler(ngx_conf_t *cf, ngx_int_t last);
+// 这个函数用于从配置文件中读取一个指令，包括指令名称和参数
 static ngx_int_t ngx_conf_read_token(ngx_conf_t *cf);
+// 这个函数用于将当前所有打开的文件缓冲区中的数据刷到磁盘上，并关闭这些文件
 static void ngx_conf_flush_files(ngx_cycle_t *cycle);
 
 
@@ -159,7 +165,7 @@ ngx_conf_parse(ngx_conf_t *cf, ngx_str_t *filename)
 {
     char             *rv;
     ngx_fd_t          fd;
-    ngx_int_t         rc;
+    ngx_int_t         rc;               // 表示解析配置文件的返回值
     ngx_buf_t         buf;
     ngx_conf_file_t  *prev, conf_file;
     enum {
@@ -502,23 +508,30 @@ invalid:
 static ngx_int_t
 ngx_conf_read_token(ngx_conf_t *cf)
 {
+    // start: 当前token的首字符
+    // ch: 当前解析到的字符
+    // src: 指向待解析的字符流
+    // dst: 指向当前token的末尾字符的下一个位置
     u_char      *start, ch, *src, *dst;
-    off_t        file_size;
-    size_t       len;
+    off_t        file_size;     // 文件大小
+    size_t       len;           // 当前token的长度
+    // n: 已经解析的字符长度
+    // size: 还需要解析的字符数
     ssize_t      n, size;
     ngx_uint_t   found, need_space, last_space, sharp_comment, variable;
+    // start_line: 当前行的其实位置
     ngx_uint_t   quoted, s_quoted, d_quoted, start_line;
-    ngx_str_t   *word;
-    ngx_buf_t   *b, *dump;
+    ngx_str_t   *word;          // 当前的行号
+    ngx_buf_t   *b, *dump;      // b: token的长度，dump是否需要输出当前读取到的token
 
-    found = 0;
-    need_space = 0;
-    last_space = 1;
-    sharp_comment = 0;
-    variable = 0;
-    quoted = 0;
-    s_quoted = 0;
-    d_quoted = 0;
+    found = 0;          // 是否读取到有效的token
+    need_space = 0;     // 当前token后是否需要空格
+    last_space = 1;     // 上一个字符是否是空格
+    sharp_comment = 0;  // 当前token签名是否有#注释
+    variable = 0;       // 当前token是否为变量名
+    quoted = 0;         // 当前token是否被单引号或双引号包围
+    s_quoted = 0;       // 当前token是否被单引号包围
+    d_quoted = 0;       // 当前token是否被双引号包围
 
     cf->args->nelts = 0;
     b = cf->conf_file->buffer;

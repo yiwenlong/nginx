@@ -8,17 +8,22 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-
+/*
+ * 在内存池中申请创建一个buf，分别创建了buf的结构体区域和数据区域
+ */
 ngx_buf_t *
 ngx_create_temp_buf(ngx_pool_t *pool, size_t size)
 {
     ngx_buf_t *b;
 
+    // 从内存池中申请一块内存，用于存储 ngx_buf_t 结构体
     b = ngx_calloc_buf(pool);
     if (b == NULL) {
         return NULL;
     }
 
+    // 从内存池中申请一块内存，用于存储 ngx_buf_t 的数据
+    // 结构体的开始指针指向该内存
     b->start = ngx_palloc(pool, size);
     if (b->start == NULL) {
         return NULL;
@@ -43,7 +48,11 @@ ngx_create_temp_buf(ngx_pool_t *pool, size_t size)
     return b;
 }
 
-
+/*
+ * 申请一个buf链表。
+ * 如果内存池中有可用的，优先使用内存池中的。
+ * 否则则在内存池中新创建一个。
+ */
 ngx_chain_t *
 ngx_alloc_chain_link(ngx_pool_t *pool)
 {
@@ -52,6 +61,8 @@ ngx_alloc_chain_link(ngx_pool_t *pool)
     cl = pool->chain;
 
     if (cl) {
+        // 如果内存池的buf链表中有值
+        // 链表指针后移一位
         pool->chain = cl->next;
         return cl;
     }
@@ -71,6 +82,7 @@ ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
     u_char       *p;
     ngx_int_t     i;
     ngx_buf_t    *b;
+    // ll: 用来保存 ngx_chain_t.next 指针的地址
     ngx_chain_t  *chain, *cl, **ll;
 
     p = ngx_palloc(pool, bufs->num * bufs->size);
@@ -78,6 +90,7 @@ ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
         return NULL;
     }
 
+    // chain 用来返回，ll 开始指向这个地址
     ll = &chain;
 
     for (i = 0; i < bufs->num; i++) {
@@ -113,7 +126,9 @@ ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
         }
 
         cl->buf = b;
+        // 将当前 ngx_chain_t 的地址保存到上一个 ngx_chain_t 的 next 指针中
         *ll = cl;
+        // 将 ll 指向当前 ngx_chain_t 的 next 指针地址，以备下一次循环使用
         ll = &cl->next;
     }
 
@@ -122,7 +137,10 @@ ngx_create_chain_of_bufs(ngx_pool_t *pool, ngx_bufs_t *bufs)
     return chain;
 }
 
-
+/**
+ * 把链表in的数据添加到chain指向的链表的末尾
+ * 会创建新的ngx_chain_t对象指向旧的buf
+ */
 ngx_int_t
 ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
 {
@@ -130,6 +148,7 @@ ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
 
     ll = chain;
 
+    // ll 指向链表最后一个节点next的地址
     for (cl = *chain; cl; cl = cl->next) {
         ll = &cl->next;
     }
@@ -152,19 +171,25 @@ ngx_chain_add_copy(ngx_pool_t *pool, ngx_chain_t **chain, ngx_chain_t *in)
     return NGX_OK;
 }
 
-
+/**
+ * 获取一个空闲的buf，如果没有就从池中创建一个
+ */
 ngx_chain_t *
 ngx_chain_get_free_buf(ngx_pool_t *p, ngx_chain_t **free)
 {
     ngx_chain_t  *cl;
 
     if (*free) {
+        // 如果free中有buf，则使用此buf
         cl = *free;
+        // 将free的指针后移
         *free = cl->next;
+        // buf从free中拿走
         cl->next = NULL;
         return cl;
     }
 
+    // 创建新的buf
     cl = ngx_alloc_chain_link(p);
     if (cl == NULL) {
         return NULL;
@@ -188,6 +213,7 @@ ngx_chain_update_chains(ngx_pool_t *p, ngx_chain_t **free, ngx_chain_t **busy,
     ngx_chain_t  *cl;
 
     if (*out) {
+        // 把out追加到busy后面
         if (*busy == NULL) {
             *busy = *out;
 

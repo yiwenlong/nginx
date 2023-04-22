@@ -47,21 +47,21 @@ struct ngx_pool_large_s {
 
 
 typedef struct {
-    u_char               *last;
-    u_char               *end;
-    ngx_pool_t           *next;
-    ngx_uint_t            failed;
+    u_char               *last;         // 表示内存池中下一块可用内存的起始地址，也就是内存池中已经使用的内存的结束地址
+    u_char               *end;          // 表示内存池的结束地址，也就是内存池中已经分配的内存的结束地址。
+    ngx_pool_t           *next;         // 表示下一个内存池，当当前内存池中的内存不足以满足请求时，会从下一个内存池中继续分配内存。
+    ngx_uint_t            failed;       // 表示当前内存池中已经失败的次数，也就是内存池中已经没有足够的内存可用的次数，当failed达到一定的值后，会自动创建一个新的内存池。
 } ngx_pool_data_t;
 
 
 struct ngx_pool_s {
-    ngx_pool_data_t       d;
-    size_t                max;
-    ngx_pool_t           *current;
-    ngx_chain_t          *chain;
-    ngx_pool_large_t     *large;
-    ngx_pool_cleanup_t   *cleanup;
-    ngx_log_t            *log;
+    ngx_pool_data_t       d;            // 内存池数据区域
+    size_t                max;          // 内存池数据区域的大小，用于限制内存池最多可以分配的内存大小
+    ngx_pool_t           *current;      // 指向内存池数据区域中当前可分配内存的位置，即指向一个空闲内存块的指针。
+    ngx_chain_t          *chain;        // 一条链表，用于管理内存池分配的小内存块，每个链表节点ngx_chain_t都包含一个内存块指针和下一个链表节点指针。
+    ngx_pool_large_t     *large;        // 指向当前内存池中所有大内存块的链表头部。
+    ngx_pool_cleanup_t   *cleanup;      // 用于记录内存池中需要在销毁时执行的清理函数。
+    ngx_log_t            *log;          // 内存池所属的日志对象。
 };
 
 
